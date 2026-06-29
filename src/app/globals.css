@@ -1,0 +1,85 @@
+@import "tailwindcss";
+
+@theme inline {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+}
+
+/*
+ * "Quiet luxury" golden palette — used by the /studio stylist flow.
+ * Warm-tuned neutrals so the antique gold reads as native, not pasted on.
+ * Exposed as Tailwind color tokens (bg-ink, text-body, border-hairline, …).
+ */
+@theme {
+  --color-ink: #1e1b16;
+  --color-gold: #b08d4c;
+  --color-gold-bright: #c9a227;
+  --color-label: #b9a079;
+  --color-fade: #d2c6b2;
+  --color-body: #7a736a;
+  --color-hairline: #ede8e0;
+  --color-card: #f7f3ec;
+  --color-cream: #fbf9f5;
+  --font-grotesk: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Tracked uppercase micro-label that sits above every section header. */
+.micro-label {
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+/* Champagne-metallic wordmark / overlay fill. */
+.gold-gradient {
+  background-image: linear-gradient(105deg, #c9b68f 0%, #e2d4b8 38%, #9c8a6a 62%, #6e6452 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Hide scrollbars on the horizontal scroll-snap strips. */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes studio-shimmer {
+  0% {
+    background-position: -160% 0;
+  }
+  100% {
+    background-position: 160% 0;
+  }
+}
+
+@keyframes studio-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes studio-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font-sans);
+  /* Avoid the grey tap flash on mobile for a snappier feel. */
+  -webkit-tap-highlight-color: transparent;
+}
