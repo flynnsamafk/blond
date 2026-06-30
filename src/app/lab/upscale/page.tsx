@@ -18,7 +18,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { BeforeAfterSlider } from "@/components/lab/BeforeAfterSlider";
-import { listGenerations } from "@/lib/history";
+import { listGenerations } from "@/lib/generations";
 import { UPSCALE_SCALE, upscaleImage } from "@/lib/upscale/upscale";
 
 // Cap the input so the test stays snappy. The model tiles internally, so larger

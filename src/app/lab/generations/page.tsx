@@ -13,7 +13,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { listGenerations, type GenerationRecord } from "@/lib/history";
+import { listGenerations, type GenerationRecord } from "@/lib/generations";
 
 type State =
   | { kind: "loading" }

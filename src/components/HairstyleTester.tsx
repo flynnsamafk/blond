@@ -28,7 +28,7 @@ import {
   deleteGeneration,
   listGenerations,
   type GenerationRecord,
-} from "@/lib/history";
+} from "@/lib/generations";
 
 type Tee = "black" | "white";
 type SlotKey = "front" | "side" | "reference";
