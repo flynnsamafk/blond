@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
@@ -82,6 +83,123 @@ function quarterStyle(url: string, o: Orientation): CSSProperties {
     backgroundPosition: QUARTER_POS[o],
     backgroundRepeat: "no-repeat",
   };
+}
+
+// Top-left corner of each quarter as a fraction of the full 2×2 sheet — used by
+// the hover magnifier to keep the zoom inside the currently-viewed quarter.
+const QUARTER_ORIGIN: Record<Orientation, [number, number]> = {
+  front: [0, 0],
+  left: [0.5, 0],
+  back: [0, 0.5],
+  right: [0.5, 0.5],
+};
+
+const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+/**
+ * Amazon-style hover magnifier for the base-profile preview. On hover it shows a
+ * lens over the cursor and a floating zoom box (fixed-positioned, so it escapes
+ * the card's overflow) that follows the cursor. The zoom is constrained to the
+ * currently-viewed quarter of the 2×2 turnaround sheet so it never bleeds into
+ * the other angles. Falls back to a plain quarter view when `enabled` is false.
+ */
+function ZoomPreview({
+  url,
+  orientation,
+  enabled,
+}: {
+  url: string;
+  orientation: Orientation;
+  enabled: boolean;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [hover, setHover] = useState(false);
+  const [zoom, setZoom] = useState<{
+    bgX: number;
+    bgY: number;
+    lensX: number;
+    lensY: number;
+    left: number;
+    top: number;
+  } | null>(null);
+
+  const SIZE = 4.4; // background-size multiple inside the zoom box (≈2.2× the quarter)
+  const BOX_W = 300;
+  const BOX_H = 400; // 3:4 to match the preview
+  const GAP = 16;
+  const lensPct = (2 / SIZE) * 100; // lens edge as % of the preview
+
+  const onMove = useCallback(
+    (e: ReactMouseEvent<HTMLDivElement>) => {
+      const el = ref.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const px = clampN((e.clientX - rect.left) / rect.width, 0, 1);
+      const py = clampN((e.clientY - rect.top) / rect.height, 0, 1);
+      const [ox, oy] = QUARTER_ORIGIN[orientation];
+      const half = 0.5 / SIZE; // half the zoom window, as a fraction of the full sheet
+      // Cursor → image point, clamped so the window stays inside this quarter.
+      const imgX = clampN(ox + px * 0.5, ox + half, ox + 0.5 - half);
+      const imgY = clampN(oy + py * 0.5, oy + half, oy + 0.5 - half);
+      const bgX = ((imgX * SIZE - 0.5) / (SIZE - 1)) * 100;
+      const bgY = ((imgY * SIZE - 0.5) / (SIZE - 1)) * 100;
+      // Place the box to the right of the preview; flip left if it would overflow.
+      let left = rect.right + GAP;
+      if (left + BOX_W > window.innerWidth - 8) left = rect.left - GAP - BOX_W;
+      const top = clampN(rect.top, 8, Math.max(8, window.innerHeight - BOX_H - 8));
+      setZoom({
+        bgX,
+        bgY,
+        lensX: ((imgX - ox) / 0.5) * 100,
+        lensY: ((imgY - oy) / 0.5) * 100,
+        left,
+        top,
+      });
+    },
+    [orientation],
+  );
+
+  return (
+    <div
+      ref={ref}
+      className={`relative h-full w-full ${enabled ? "cursor-zoom-in" : ""}`}
+      onMouseEnter={() => enabled && setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      onMouseMove={enabled ? onMove : undefined}
+    >
+      <div className="h-full w-full transition-all duration-300" style={quarterStyle(url, orientation)} />
+
+      {enabled && hover && zoom && (
+        <>
+          {/* Lens over the magnified region */}
+          <div
+            className="pointer-events-none absolute rounded-sm border border-white/80 bg-white/10 shadow-[0_0_0_9999px_rgba(0,0,0,0.12)]"
+            style={{
+              width: `${lensPct}%`,
+              height: `${lensPct}%`,
+              left: `${zoom.lensX}%`,
+              top: `${zoom.lensY}%`,
+              transform: "translate(-50%, -50%)",
+            }}
+          />
+          {/* Floating zoom box (fixed → escapes the card's overflow) */}
+          <div
+            className="pointer-events-none fixed z-[60] overflow-hidden rounded-xl border-2 border-black bg-white shadow-2xl"
+            style={{
+              left: zoom.left,
+              top: zoom.top,
+              width: BOX_W,
+              height: BOX_H,
+              backgroundImage: `url("${url}")`,
+              backgroundSize: `${SIZE * 100}%`,
+              backgroundPosition: `${zoom.bgX}% ${zoom.bgY}%`,
+              backgroundRepeat: "no-repeat",
+            }}
+          />
+        </>
+      )}
+    </div>
+  );
 }
 
 // STAGE 1 — build the frozen "customer profile" from front + side. Identity is
@@ -487,7 +605,11 @@ export function HairstyleTester() {
                       <span className="text-[11px] font-medium text-neutral-500">Building Profile...</span>
                     </div>
                   ) : (
-                    <div className="h-full w-full transition-all duration-300" style={quarterStyle(base ? base.url : "/default-base.png", orientation)} />
+                    <ZoomPreview
+                      url={base ? base.url : "/default-base.png"}
+                      orientation={orientation}
+                      enabled={Boolean(base)}
+                    />
                   )}
                 </div>
 
