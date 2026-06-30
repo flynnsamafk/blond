@@ -33,7 +33,24 @@ export async function updateSession(request: NextRequest) {
   });
 
   // IMPORTANT: do not run code between createServerClient and getUser().
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  // Gate the whole app behind sign-in. /login and /auth/* stay public so people
+  // can actually authenticate; everything else requires a session.
+  const path = request.nextUrl.pathname;
+  const isPublic = path.startsWith("/login") || path.startsWith("/auth");
+
+  if (!user && !isPublic) {
+    // API routes get a clean 401 instead of an HTML redirect.
+    if (path.startsWith("/api")) {
+      return NextResponse.json({ error: "Unauthorized — please sign in." }, { status: 401 });
+    }
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
 
   return supabaseResponse;
 }
