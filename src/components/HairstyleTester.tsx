@@ -123,6 +123,20 @@ function ZoomPreview({
     top: number;
   } | null>(null);
 
+  // Quick frosted-glass wipe when the view angle changes, so the angle swap is
+  // hidden behind a brief blur instead of the image visibly snapping.
+  const [frost, setFrost] = useState(false);
+  const firstView = useRef(true);
+  useEffect(() => {
+    if (firstView.current) {
+      firstView.current = false;
+      return;
+    }
+    setFrost(true);
+    const t = setTimeout(() => setFrost(false), 240);
+    return () => clearTimeout(t);
+  }, [orientation]);
+
   const SIZE = 4.4; // background-size multiple inside the zoom box (≈2.2× the quarter)
   const BOX_W = 300;
   const BOX_H = 400; // 3:4 to match the preview
@@ -169,7 +183,14 @@ function ZoomPreview({
     >
       <div className="h-full w-full transition-all duration-300" style={quarterStyle(url, orientation)} />
 
-      {enabled && hover && zoom && (
+      {/* Frosted-glass wipe on angle change */}
+      <div
+        className={`pointer-events-none absolute inset-0 z-20 bg-white/10 backdrop-blur-md transition-opacity duration-200 ${
+          frost ? "opacity-100" : "opacity-0"
+        }`}
+      />
+
+      {enabled && hover && zoom && !frost && (
         <>
           {/* Lens over the magnified region */}
           <div
@@ -380,6 +401,8 @@ export function HairstyleTester() {
   const [resultView, setResultView] = useState<ResultView>("compare");
   // Which of the four turnaround angles is currently shown (crops the 2×2 sheet).
   const [orientation, setOrientation] = useState<Orientation>("front");
+  // Confirmation gate for regenerating the active profile.
+  const [regenAsk, setRegenAsk] = useState(false);
 
   const busy = stage !== null;
   const tryOnSectionRef = useRef<HTMLDivElement>(null);
@@ -487,6 +510,16 @@ export function HairstyleTester() {
     } finally {
       setStage(null);
     }
+  }
+
+  // Confirmed regenerate of the active profile (from the U-turn badge).
+  function confirmRegenerate() {
+    setRegenAsk(false);
+    if (!slots.front || !slots.side) {
+      setBaseError("Re-upload the front and side photos to regenerate the profile.");
+      return;
+    }
+    void createBase();
   }
 
   async function applyHairstyle() {
@@ -604,12 +637,13 @@ export function HairstyleTester() {
                       </svg>
                       <span className="text-[11px] font-medium text-neutral-500">Building Profile...</span>
                     </div>
+                  ) : base ? (
+                    <ZoomPreview url={base.url} orientation={orientation} enabled />
                   ) : (
-                    <ZoomPreview
-                      url={base ? base.url : "/default-base.png"}
-                      orientation={orientation}
-                      enabled={Boolean(base)}
-                    />
+                    <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-4 text-center text-white/55">
+                      <span className="text-sm font-semibold">No profile yet</span>
+                      <span className="text-xs">Add a front &amp; side photo, then build.</span>
+                    </div>
                   )}
                 </div>
 
@@ -654,14 +688,20 @@ export function HairstyleTester() {
                 )}
               </div>
 
-              {/* Decorative profile badge (spec: image 5, bottom-right) */}
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/image-5.png"
-                alt=""
-                aria-hidden
-                className="pointer-events-none absolute bottom-4 right-4 h-12 w-12 object-contain opacity-90"
-              />
+              {/* Regenerate the profile (the U-turn badge). Confirms first. */}
+              {base && (
+                <button
+                  type="button"
+                  onClick={() => setRegenAsk(true)}
+                  disabled={busy}
+                  aria-label="Regenerate profile"
+                  title="Regenerate profile"
+                  className="absolute bottom-4 right-4 rounded-full p-1.5 transition-transform hover:scale-110 active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/image-5.png" alt="" aria-hidden className="h-12 w-12 object-contain" />
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -967,6 +1007,41 @@ export function HairstyleTester() {
             })}
           </ul>
         </section>
+      )}
+
+      {/* Regenerate confirmation */}
+      {regenAsk && (
+        <div
+          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm"
+          onClick={() => setRegenAsk(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-xs rounded-2xl border border-neutral-200 bg-white p-5 text-center shadow-xl"
+          >
+            <h3 className="text-base font-bold text-neutral-900">Regenerate profile?</h3>
+            <p className="mt-1.5 text-sm text-neutral-500">
+              This rebuilds the base profile from the customer&apos;s photos. The current one will be
+              replaced.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                onClick={() => setRegenAsk(false)}
+                className="flex-1 rounded-full border border-neutral-300 px-4 py-2.5 text-sm font-medium text-neutral-700 hover:bg-neutral-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmRegenerate}
+                className="flex-1 rounded-full bg-[#2B2B2B] px-4 py-2.5 text-sm font-semibold text-white hover:bg-[#3a3a3a]"
+              >
+                Regenerate
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
