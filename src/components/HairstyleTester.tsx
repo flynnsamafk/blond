@@ -425,10 +425,12 @@ export function HairstyleTester() {
 
   return (
     <div className="space-y-12">
-      <header className="space-y-1 pt-6">
-        <h1 className="text-4xl font-extrabold tracking-tight text-neutral-950">Try Blond</h1>
-        <p className="text-sm text-neutral-500 font-medium">
-          First build a <strong className="font-semibold text-neutral-800">base profile</strong> from a front + side photo
+      <header className="space-y-2 pt-6">
+        <h1 className="text-6xl md:text-7xl font-extrabold tracking-tight leading-none text-black">
+          Try Blond
+        </h1>
+        <p className="text-lg md:text-xl text-black font-normal">
+          First build a <strong className="font-bold">base profile</strong> from a front + side photo
         </p>
       </header>
 
@@ -437,28 +439,32 @@ export function HairstyleTester() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Upload slots & Build Button */}
           <div className="lg:col-span-5 flex flex-col gap-6 w-full">
-            <div className="grid grid-cols-2 gap-4">
-              <UploadSlot
-                title="Front"
-                subtitle="Profile"
-                slot={slots.front}
-                onPick={(f) => pick("front", f)}
-                theme="dark"
-              />
-              <UploadSlot
-                title="Side"
-                subtitle="Profile"
-                slot={slots.side}
-                onPick={(f) => pick("side", f)}
-                theme="dark"
-              />
+            <div className="flex gap-4 w-full h-[280px] md:h-[300px]">
+              <div className="w-1/2 h-full">
+                <UploadSlot
+                  title="Front"
+                  subtitle="Profile"
+                  slot={slots.front}
+                  onPick={(f) => pick("front", f)}
+                  theme="dark"
+                />
+              </div>
+              <div className="w-1/2 h-full">
+                <UploadSlot
+                  title="Side"
+                  subtitle="Profile"
+                  slot={slots.side}
+                  onPick={(f) => pick("side", f)}
+                  theme="dark"
+                />
+              </div>
             </div>
             <div className="space-y-2">
               <button
                 type="button"
                 onClick={createBase}
                 disabled={!canCreateBase}
-                className="cursor-pointer bg-[#262626] text-white rounded-lg px-6 py-2.5 text-sm font-semibold hover:bg-[#363636] active:scale-95 transition-all duration-200 disabled:bg-neutral-200 disabled:text-neutral-400 disabled:cursor-not-allowed w-full sm:w-auto"
+                className="cursor-pointer bg-[#2B2B2B] text-white rounded-full px-8 py-3 text-base font-semibold hover:bg-[#363636] active:scale-95 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
               >
                 {stage === "base" ? "Building base…" : base ? "Rebuild base profile" : "Build Profile"}
               </button>
@@ -468,13 +474,11 @@ export function HairstyleTester() {
 
           {/* Right Column: Active Profile Card */}
           <div className="lg:col-span-7 w-full">
-            <div className="bg-white border border-neutral-200 rounded-xl p-6 shadow-sm flex flex-col sm:flex-row gap-6 items-start">
+            <div className="relative bg-white border-2 border-black rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-start">
               {/* Left Side: Preview & Orientation toggle */}
               <div className="w-full sm:w-48 shrink-0 flex flex-col items-center">
-                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-neutral-100 border border-neutral-200/60 flex items-center justify-center shadow-inner">
-                  {base ? (
-                    <div className="h-full w-full transition-all duration-300" style={quarterStyle(base.url, orientation)} />
-                  ) : stage === "base" ? (
+                <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-[linear-gradient(180deg,#121212_57.21%,rgba(120,120,120,0.79)_100%)] flex items-center justify-center">
+                  {stage === "base" ? (
                     <div className="flex flex-col items-center gap-2 text-neutral-400">
                       <svg className="animate-spin h-5 w-5 text-neutral-500" viewBox="0 0 24 24">
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
@@ -483,13 +487,7 @@ export function HairstyleTester() {
                       <span className="text-[11px] font-medium text-neutral-500">Building Profile...</span>
                     </div>
                   ) : (
-                    <div className="flex flex-col items-center justify-center text-neutral-400 p-4 text-center select-none">
-                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1} stroke="currentColor" className="w-12 h-12 mb-2 text-neutral-300">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M17.982 18.725A7.488 7.488 0 0012 15.75a7.488 7.488 0 00-5.982 2.975m11.963 0a9 9 0 10-11.963 0m11.963 0A8.966 8.966 0 0112 21a8.966 8.966 0 01-5.982-2.275M15 9.75a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                      <span className="text-xs font-semibold text-neutral-400">No Active Profile</span>
-                      <span className="text-[10px] text-neutral-400 mt-1">Upload front + side photos to build</span>
-                    </div>
+                    <div className="h-full w-full transition-all duration-300" style={quarterStyle(base ? base.url : "/default-base.png", orientation)} />
                   )}
                 </div>
 
@@ -497,33 +495,28 @@ export function HairstyleTester() {
                   value={orientation}
                   onChange={setOrientation}
                   options={ORIENTATIONS}
-                  disabled={!base}
+                  disabled={false}
+                  variant="profile"
                 />
               </div>
 
               {/* Right Side: Attributes */}
               <div className="flex-1 flex flex-col justify-between self-stretch py-1">
                 <div className="space-y-4">
-                  <span className="block text-xs font-bold uppercase tracking-wider text-neutral-400">Active Profile</span>
-                  
-                  <div className="space-y-3.5 pt-2 border-t border-neutral-100">
-                    <div className="flex items-baseline gap-2 text-sm">
-                      <span className="text-neutral-400 font-medium">Face Shape:</span>
-                      <span className={`font-bold transition-colors ${base ? "text-neutral-800" : "text-neutral-300 font-normal"}`}>
-                        {base ? "Diamond" : "—"}
-                      </span>
+                  <span className="block text-2xl font-semibold text-[#D9D9D9]">Active Profile</span>
+
+                  <div className="space-y-2.5 pt-1">
+                    <div className="flex items-baseline gap-2 text-lg">
+                      <span className="text-[#8B8B8B] font-semibold">Face Shape:</span>
+                      <span className="text-[#8B8B8B] font-semibold">Diamond</span>
                     </div>
-                    <div className="flex items-baseline gap-2 text-sm">
-                      <span className="text-neutral-400 font-medium">Hairline:</span>
-                      <span className={`font-bold transition-colors ${base ? "text-neutral-800" : "text-neutral-300 font-normal"}`}>
-                        {base ? "Average" : "—"}
-                      </span>
+                    <div className="flex items-baseline gap-2 text-lg">
+                      <span className="text-[#8B8B8B] font-semibold">Hairline:</span>
+                      <span className="text-[#8B8B8B] font-semibold">Average</span>
                     </div>
-                    <div className="flex items-baseline gap-2 text-sm">
-                      <span className="text-neutral-400 font-medium">Descent:</span>
-                      <span className={`font-bold transition-colors ${base ? "text-neutral-800" : "text-neutral-300 font-normal"}`}>
-                        {base ? "Anglo" : "—"}
-                      </span>
+                    <div className="flex items-baseline gap-2 text-lg">
+                      <span className="text-[#8B8B8B] font-semibold">Descent:</span>
+                      <span className="text-[#8B8B8B] font-semibold">Anglo</span>
                     </div>
                   </div>
                 </div>
@@ -538,6 +531,15 @@ export function HairstyleTester() {
                   </button>
                 )}
               </div>
+
+              {/* Decorative profile badge (spec: image 5, bottom-right) */}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/image-5.png"
+                alt=""
+                aria-hidden
+                className="pointer-events-none absolute bottom-4 right-4 h-12 w-12 object-contain opacity-90"
+              />
             </div>
           </div>
         </div>
@@ -550,12 +552,9 @@ export function HairstyleTester() {
           onClick={() => {
             tryOnSectionRef.current?.scrollIntoView({ behavior: "smooth" });
           }}
-          className="cursor-pointer bg-[#262626] text-white rounded-lg px-8 py-3 text-sm font-bold hover:bg-[#363636] active:scale-95 transition-all duration-200 shadow-md flex items-center gap-2"
+          className="cursor-pointer bg-[#2B2B2B] text-white rounded-full px-16 py-4 text-lg font-bold hover:bg-[#363636] active:scale-95 transition-all duration-200 shadow-md"
         >
           Try Blond
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-3.5 h-3.5">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-          </svg>
         </button>
       </div>
 
@@ -569,7 +568,7 @@ export function HairstyleTester() {
           title="Try a hairstyle"
           desc="Only the hair changes; the frozen face stays identical. Try as many as you like."
         />
-        <div className={`grid grid-cols-2 gap-4 sm:max-w-md ${!base ? "pointer-events-none" : ""}`}>
+        <div className={`grid grid-cols-2 gap-4 sm:max-w-md h-[280px] md:h-[300px] ${!base ? "pointer-events-none" : ""}`}>
           <UploadSlot
             title="Hair"
             subtitle="Reference"
@@ -934,12 +933,15 @@ function UploadSlot({
   const inputRef = useRef<HTMLInputElement>(null);
   
   const isDark = theme === "dark";
-  const bgClass = isDark ? "bg-[#262626]" : "bg-neutral-50 border border-neutral-200";
+  // Spec: black → grey horizontal gradient card.
+  const bgClass = isDark
+    ? "bg-[linear-gradient(90deg,#000000_42.31%,#737373_100%)]"
+    : "bg-neutral-50 border border-neutral-200";
   const textClass = isDark ? "text-white" : "text-neutral-900";
-  const subtextClass = isDark ? "text-neutral-300" : "text-neutral-500";
+  const subtextClass = isDark ? "text-neutral-200" : "text-neutral-500";
   
   return (
-    <div className={`relative aspect-[3/4] w-full overflow-hidden ${bgClass} ${textClass} flex flex-col justify-between p-5 select-none shadow-md rounded-lg`}>
+    <div className={`relative w-full h-full overflow-hidden ${bgClass} ${textClass} flex flex-col justify-between p-5 select-none shadow-md rounded-none`}>
       {/* Background Preview */}
       {slot && (
         <>
@@ -955,16 +957,16 @@ function UploadSlot({
 
       {/* Top Labels */}
       <div className="relative z-10 flex flex-col">
-        <span className="text-3xl font-extrabold tracking-tight leading-none">{title}</span>
-        <span className={`text-sm font-light ${subtextClass} mt-1`}>{subtitle}</span>
+        <span className="text-4xl font-extrabold tracking-tight leading-none">{title}</span>
+        <span className={`text-base font-light ${subtextClass} mt-1`}>{subtitle}</span>
       </div>
 
-      {/* Bottom Button */}
+      {/* Bottom Button — grey outer ring + white inner pill (spec) */}
       <div className="relative z-10 flex justify-center w-full">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="cursor-pointer bg-white text-neutral-900 rounded-full py-1.5 px-4 text-[10px] font-bold shadow-md hover:bg-neutral-100 active:scale-95 transition-all duration-200 flex items-center gap-1.5"
+          className="cursor-pointer bg-white text-black border-2 border-[#797979] rounded-full py-2 px-5 text-xs font-light shadow-md hover:bg-neutral-100 active:scale-95 transition-all duration-200 flex items-center gap-1.5"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -972,7 +974,7 @@ function UploadSlot({
             viewBox="0 0 24 24"
             strokeWidth={2.5}
             stroke="currentColor"
-            className="w-3.5 h-3.5"
+            className="w-4 h-4"
           >
             <path
               strokeLinecap="round"
@@ -1157,26 +1159,37 @@ function Segmented<T extends string>({
   onChange,
   options,
   disabled = false,
+  variant = "default",
 }: {
   value: T;
   onChange: (v: T) => void;
   options: { v: T; label: string }[];
   disabled?: boolean;
+  /** "profile" matches the Active Profile View toggle (dark border + black pill). */
+  variant?: "default" | "profile";
 }) {
+  const isProfile = variant === "profile";
+  const container = isProfile
+    ? "inline-flex rounded-[14px] border-[3px] border-[#4C4C4C] p-0.5 select-none w-full mt-3"
+    : "inline-flex bg-neutral-50 rounded-full border border-neutral-200/80 p-0.5 select-none w-full mt-3";
+  const activeClass = isProfile ? "bg-[#070707] text-white rounded-[10px]" : "bg-[#262626] text-white shadow-sm";
+  const inactiveClass = isProfile ? "text-[#313131] hover:text-black" : "text-neutral-500 hover:text-neutral-800";
   return (
-    <div className="inline-flex bg-neutral-50 rounded-full border border-neutral-200/80 p-0.5 select-none w-full mt-3">
+    <div className={container}>
       {options.map((o) => (
         <button
           key={o.v}
           type="button"
           disabled={disabled}
           onClick={() => onChange(o.v)}
-          className={`flex-1 text-center py-1.5 text-[10px] font-bold rounded-full cursor-pointer transition-all duration-200 active:scale-95 ${
+          className={`flex-1 text-center py-1.5 text-[10px] font-bold cursor-pointer transition-all duration-200 active:scale-95 ${
+            isProfile ? "rounded-[10px]" : "rounded-full"
+          } ${
             disabled
               ? "text-neutral-300 cursor-not-allowed"
               : value === o.v
-                ? "bg-[#262626] text-white shadow-sm"
-                : "text-neutral-500 hover:text-neutral-800"
+                ? activeClass
+                : inactiveClass
           }`}
         >
           {o.label}
