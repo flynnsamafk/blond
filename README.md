@@ -11,13 +11,20 @@ A try-on only helps a stylist if the client believes it's **them**. So Blond is 
 
 Because identity is built once and reused, every style the client tries on looks like the same real person — consistent, grounded, and salon-credible.
 
+## Access
+
+Blond is staff-only. The whole app sits behind a Supabase email/password gate — unauthenticated visitors are sent to `/login`, and the generation API returns `401`. Accounts are created by an admin in Supabase (no public signup).
+
 ## Stack & setup
 
-Next.js 15, React 19, Tailwind CSS 4, with Google Gemini and xAI Grok image models.
+Next.js 15, React 19, Tailwind CSS 4, Supabase Auth, with Google Gemini and xAI Grok image models.
 
 ```bash
 npm install
 npm run dev
 ```
 
-Then add `GEMINI_API_KEY` and `XAI_API_KEY` to `.env.local`.
+Then add to `.env.local`:
+
+- `GEMINI_API_KEY` and `XAI_API_KEY` — image generation
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` — staff login gate
