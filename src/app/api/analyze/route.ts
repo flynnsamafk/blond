@@ -8,7 +8,7 @@ const XAI_BASE = "https://api.x.ai/v1";
 const MODEL = "grok-4.3"; // vision-capable (text, image → text)
 
 const PROMPT = `You are a professional salon consultant assessing a customer for a haircut. Using the front and side photos, judge ONLY clearly visible features. Reply with a COMPACT JSON object and nothing else — no commentary, no markdown fences:
-{"faceShape":"Oval|Round|Square|Oblong|Heart|Diamond|Triangle","hairline":"Low|Average|High|Receding|Widow's peak|Straight","descent":"the single most-likely ancestry in one or two words, e.g. Anglo, South Asian, East Asian, African, Hispanic, Middle Eastern, Mixed"}`;
+{"faceShape":"Oval|Round|Square|Oblong|Heart|Diamond|Triangle","foreheadShape":"Rounded|Straight|Tall|Broad|Narrow|M-shaped","facialRatio":"a short 1-3 word descriptor of facial-thirds balance, e.g. Balanced, Long midface, Short lower-third, Wide-set","hairline":"Low|Average|High|Receding|Widow's peak|Straight"}`;
 
 async function toDataUrl(blob: Blob): Promise<string> {
   const buf = Buffer.from(await blob.arrayBuffer());
@@ -102,8 +102,9 @@ export async function POST(request: Request) {
     return NextResponse.json({
       attributes: {
         faceShape: String(p.faceShape ?? "—"),
+        foreheadShape: String(p.foreheadShape ?? "—"),
+        facialRatio: String(p.facialRatio ?? "—"),
         hairline: String(p.hairline ?? "—"),
-        descent: String(p.descent ?? "—"),
       },
     });
   } catch {

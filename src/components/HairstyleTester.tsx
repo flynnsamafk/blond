@@ -24,7 +24,6 @@ import {
 import {
   MAX_RECORDS,
   addGeneration,
-  clearGenerations,
   deleteGeneration,
   listGenerations,
   type GenerationRecord,
@@ -406,8 +405,9 @@ export function HairstyleTester() {
   // Real profile attributes from the Grok vision scan.
   const [attributes, setAttributes] = useState<{
     faceShape: string;
+    foreheadShape: string;
+    facialRatio: string;
     hairline: string;
-    descent: string;
   } | null>(null);
   const [attrLoading, setAttrLoading] = useState(false);
 
@@ -529,7 +529,14 @@ export function HairstyleTester() {
       fd.append("image", side);
       const res = await fetch("/api/analyze", { method: "POST", body: fd });
       const data = (await res.json().catch(() => null)) as
-        | { attributes?: { faceShape: string; hairline: string; descent: string } }
+        | {
+            attributes?: {
+              faceShape: string;
+              foreheadShape: string;
+              facialRatio: string;
+              hairline: string;
+            };
+          }
         | null;
       if (res.ok && data?.attributes) setAttributes(data.attributes);
     } catch {
@@ -589,16 +596,6 @@ export function HairstyleTester() {
     setHistory((prev) => prev.filter((r) => r.id !== id));
     if (base?.id === id) setBase(null);
     await deleteGeneration(id);
-  }
-
-  async function clearHistory() {
-    if (typeof window !== "undefined" && !window.confirm("Delete all saved results from this device?")) {
-      return;
-    }
-    setHistory([]);
-    setBase(null);
-    setAttributes(null);
-    await clearGenerations();
   }
 
   const showResult = result.status !== "idle";
@@ -690,23 +687,29 @@ export function HairstyleTester() {
                 <div className="space-y-4">
                   <span className="block text-2xl font-semibold text-[#D9D9D9]">Active Profile</span>
 
-                  <div className="space-y-2.5 pt-1">
-                    <div className="flex items-baseline gap-2 text-lg">
+                  <div className="space-y-2 pt-1 text-sm sm:text-base">
+                    <div className="flex items-baseline gap-2">
                       <span className="text-[#8B8B8B] font-semibold">Face Shape:</span>
                       <span className="text-[#8B8B8B] font-semibold">
                         {attrLoading ? "Analysing…" : (attributes?.faceShape ?? "—")}
                       </span>
                     </div>
-                    <div className="flex items-baseline gap-2 text-lg">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[#8B8B8B] font-semibold">Forehead:</span>
+                      <span className="text-[#8B8B8B] font-semibold">
+                        {attrLoading ? "…" : (attributes?.foreheadShape ?? "—")}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[#8B8B8B] font-semibold">Feature Ratio:</span>
+                      <span className="text-[#8B8B8B] font-semibold">
+                        {attrLoading ? "…" : (attributes?.facialRatio ?? "—")}
+                      </span>
+                    </div>
+                    <div className="flex items-baseline gap-2">
                       <span className="text-[#8B8B8B] font-semibold">Hairline:</span>
                       <span className="text-[#8B8B8B] font-semibold">
                         {attrLoading ? "…" : (attributes?.hairline ?? "—")}
-                      </span>
-                    </div>
-                    <div className="flex items-baseline gap-2 text-lg">
-                      <span className="text-[#8B8B8B] font-semibold">Descent:</span>
-                      <span className="text-[#8B8B8B] font-semibold">
-                        {attrLoading ? "…" : (attributes?.descent ?? "—")}
                       </span>
                     </div>
                   </div>
@@ -968,13 +971,6 @@ export function HairstyleTester() {
             <span className="text-sm font-medium">
               History <span className="text-neutral-400">({history.length})</span>
             </span>
-            <button
-              type="button"
-              onClick={clearHistory}
-              className="text-xs text-neutral-500 underline underline-offset-2 hover:text-neutral-800"
-            >
-              Clear all
-            </button>
           </div>
           <div className="flex flex-wrap items-baseline gap-x-1.5 rounded-lg bg-neutral-50 px-3 py-2 text-xs">
             <span className="text-neutral-500">Total spent</span>
