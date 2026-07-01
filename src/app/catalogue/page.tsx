@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import {
@@ -12,7 +13,11 @@ import {
   type Hairstyle,
 } from "@/lib/catalogue";
 
+/** Hand a catalogue style off to the try-on flow on the home page. */
+export const TRY_ON_STYLE_KEY = "blond:tryOnStyle";
+
 export default function CataloguePage() {
+  const router = useRouter();
   const [collections, setCollections] = useState<Collection[]>([]);
   const [styles, setStyles] = useState<Hairstyle[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,7 +114,7 @@ export default function CataloguePage() {
           <h2 className="text-sm font-semibold text-neutral-500">
             {matches.length} result{matches.length === 1 ? "" : "s"} for “{query}”
           </h2>
-          <StyleGrid styles={matches} onDelete={(id) => void handleDelete(id)} />
+          <StyleGrid styles={matches} onDelete={(id) => void handleDelete(id)} onUse={useInTryOn} />
         </section>
       ) : collections.length === 0 ? (
         <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-12 text-center">
@@ -137,7 +142,7 @@ export default function CataloguePage() {
               {colStyles.length === 0 ? (
                 <p className="text-xs text-neutral-400">No styles in this collection yet.</p>
               ) : (
-                <StyleGrid styles={colStyles} onDelete={(id) => void handleDelete(id)} />
+                <StyleGrid styles={colStyles} onDelete={(id) => void handleDelete(id)} onUse={useInTryOn} />
               )}
             </section>
           );
@@ -162,9 +167,25 @@ export default function CataloguePage() {
     setStyles((s) => s.filter((x) => x.id !== id));
     await deleteHairstyle(id);
   }
+
+  function useInTryOn(style: Hairstyle) {
+    sessionStorage.setItem(
+      TRY_ON_STYLE_KEY,
+      JSON.stringify({ imageUrl: style.imageUrl, name: style.name, notes: style.notes ?? "" }),
+    );
+    router.push("/");
+  }
 }
 
-function StyleGrid({ styles, onDelete }: { styles: Hairstyle[]; onDelete: (id: string) => void }) {
+function StyleGrid({
+  styles,
+  onDelete,
+  onUse,
+}: {
+  styles: Hairstyle[];
+  onDelete: (id: string) => void;
+  onUse: (s: Hairstyle) => void;
+}) {
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
       {styles.map((s) => (
@@ -181,11 +202,20 @@ function StyleGrid({ styles, onDelete }: { styles: Hairstyle[]; onDelete: (id: s
               ×
             </button>
           </div>
-          <div className="space-y-0.5 p-2.5">
-            <p className="truncate text-sm font-semibold text-neutral-900">{s.name}</p>
-            <p className="truncate text-[11px] capitalize text-neutral-500">
-              {[s.gender, s.length, s.texture].filter(Boolean).join(" · ") || "—"}
-            </p>
+          <div className="space-y-1.5 p-2.5">
+            <div className="space-y-0.5">
+              <p className="truncate text-sm font-semibold text-neutral-900">{s.name}</p>
+              <p className="truncate text-[11px] capitalize text-neutral-500">
+                {[s.gender, s.length, s.texture].filter(Boolean).join(" · ") || "—"}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={() => onUse(s)}
+              className="w-full rounded-full bg-[#2B2B2B] py-1.5 text-xs font-semibold text-white hover:bg-[#3a3a3a]"
+            >
+              Use in try-on
+            </button>
           </div>
         </li>
       ))}

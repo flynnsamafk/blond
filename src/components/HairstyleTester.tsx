@@ -496,6 +496,8 @@ export function HairstyleTester() {
   const [copyMode, setCopyMode] = useState<"style" | "color" | "both">("style");
   // TEMP: preview the generating animation without paying for a real generation.
   const [previewGlass, setPreviewGlass] = useState(false);
+  // Fit notes carried in from a catalogue style (appended to the apply prompt).
+  const [catalogueNotes, setCatalogueNotes] = useState("");
 
   const busy = stage !== null;
   const tryOnSectionRef = useRef<HTMLDivElement>(null);
@@ -544,6 +546,34 @@ export function HairstyleTester() {
       return { ...prev, [key]: { file, url } };
     });
   }, []);
+
+  // Picked a style in the catalogue → preload it as the hair reference and carry
+  // its fit notes into the apply prompt. (Handed over via sessionStorage.)
+  useEffect(() => {
+    const raw = typeof window !== "undefined" ? sessionStorage.getItem("blond:tryOnStyle") : null;
+    if (!raw) return;
+    sessionStorage.removeItem("blond:tryOnStyle");
+    let parsed: { imageUrl: string; name?: string; notes?: string };
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      return;
+    }
+    setCatalogueNotes(parsed.notes ?? "");
+    (async () => {
+      try {
+        const res = await fetch(parsed.imageUrl);
+        const blob = await res.blob();
+        const file = new File([blob], `${parsed.name || "style"}.jpg`, {
+          type: blob.type || "image/jpeg",
+        });
+        pick("reference", file);
+        setTimeout(() => tryOnSectionRef.current?.scrollIntoView({ behavior: "smooth" }), 200);
+      } catch {
+        // ignore — the reference just won't preload
+      }
+    })();
+  }, [pick]);
 
   // Resolve each stage's tier once. Both models follow their override picker;
   // each stage's RESOLUTION stays pinned by STAGE_CONFIG (base 2K, apply 1K).
@@ -664,14 +694,18 @@ export function HairstyleTester() {
           : "\n\nHAIR COLOUR: keep the customer's OWN hair colour from Image 1 unchanged — copy only the cut and shape from Image 2, not its colour.";
       const effectivePrompt =
         copyMode === "color" ? COLOR_ONLY_PROMPT : applyPrompt + colourDirective;
+      // Fold in catalogue fit-notes (parting, cowlick, who it suits) if present.
+      const finalPrompt = catalogueNotes
+        ? `${effectivePrompt}\n\nCATALOGUE STYLE FIT NOTES (adapt the cut to the customer using this): ${catalogueNotes}`
+        : effectivePrompt;
       const url = await generateImage({
         modelId: applyModel.id,
         size: applySize,
-        prompt: effectivePrompt,
+        prompt: finalPrompt,
         images: [baseBlob, reference.file],
       });
       setResult({ status: "done", url });
-      saveRecord(url, "styled", effectivePrompt, applyModel.id, applySize, { baseId: base.id });
+      saveRecord(url, "styled", finalPrompt, applyModel.id, applySize, { baseId: base.id });
     } catch (err) {
       setResult({
         status: "error",
@@ -899,7 +933,10 @@ export function HairstyleTester() {
             title="Hair"
             subtitle="Reference"
             slot={slots.reference}
-            onPick={(f) => pick("reference", f)}
+            onPick={(f) => {
+              pick("reference", f);
+              setCatalogueNotes(""); // manual upload → drop any catalogue notes
+            }}
             theme="dark"
           />
         </div>
