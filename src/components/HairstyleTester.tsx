@@ -311,7 +311,7 @@ Output only the edited image.`;
 const GROK_BASE_PROMPT = `GROK / EDIT-MODEL DIRECTIVE — treat this as a full studio RE-SHOOT, not a light touch-up of the input photos. Actively REBUILD the scene; do not pass the originals through:
 - BACKGROUND: discard the original background entirely and replace it with a clean, smooth, evenly-lit neutral LIGHT-GREY studio backdrop, identical behind all four views.
 - WARDROBE: render the top as a PLAIN {TEE} t-shirt — remove every logo, print, text, badge or graphic from the original garment.
-- REFRAME: do not keep the input photo's crop or subject size; re-frame to the exact 2x2 turnaround layout, headroom, crop and IDENTICAL per-quarter scale described below.
+- REFRAME to a FIXED, CONSISTENT distance — a head-and-shoulders medium portrait, shot from the same set-back position every time. Ignore how near or far the subject was in the input photos: never a tight face close-up, never a distant/small head. In EVERY quarter the head (top of hair to chin) fills about 40% of that quarter's height, sits in the upper third with clear headroom above the hair, and is cropped at the upper chest so both shoulders show. The head must be the SAME SIZE and SAME distance in all four views — differing only by rotation.
 - Keep faithful ONLY the person's real identity — face, head shape, hair, facial hair and true skin tone. Everything else must be rebuilt to match this brief.
 
 ${DEFAULT_BASE_PROMPT}`;
@@ -403,6 +403,13 @@ export function HairstyleTester() {
   const [orientation, setOrientation] = useState<Orientation>("front");
   // Confirmation gate for regenerating the active profile.
   const [regenAsk, setRegenAsk] = useState(false);
+  // Real profile attributes from the Grok vision scan.
+  const [attributes, setAttributes] = useState<{
+    faceShape: string;
+    hairline: string;
+    descent: string;
+  } | null>(null);
+  const [attrLoading, setAttrLoading] = useState(false);
 
   const busy = stage !== null;
   const tryOnSectionRef = useRef<HTMLDivElement>(null);
@@ -505,10 +512,30 @@ export function HairstyleTester() {
       const rec = saveRecord(url, "base", composed, baseModel.id, baseSize);
       setBase({ id: rec.id, url });
       setResult({ status: "idle" });
+      void analyzeProfile(front.file, side.file);
     } catch (err) {
       setBaseError(err instanceof Error ? err.message : "Failed to build base profile.");
     } finally {
       setStage(null);
+    }
+  }
+
+  // Real profile attributes via the Grok vision scan (~<1¢). Non-blocking.
+  async function analyzeProfile(front: File, side: File) {
+    setAttrLoading(true);
+    try {
+      const fd = new FormData();
+      fd.append("image", front);
+      fd.append("image", side);
+      const res = await fetch("/api/analyze", { method: "POST", body: fd });
+      const data = (await res.json().catch(() => null)) as
+        | { attributes?: { faceShape: string; hairline: string; descent: string } }
+        | null;
+      if (res.ok && data?.attributes) setAttributes(data.attributes);
+    } catch {
+      // non-fatal — the profile still works without attributes
+    } finally {
+      setAttrLoading(false);
     }
   }
 
@@ -551,6 +578,7 @@ export function HairstyleTester() {
     setTee(rec.tee);
     if (rec.kind === "base") {
       setBase({ id: rec.id, url: rec.imageUrl });
+      setAttributes(null);
       setResult({ status: "idle" });
     } else {
       setResult({ status: "done", url: rec.imageUrl });
@@ -569,6 +597,7 @@ export function HairstyleTester() {
     }
     setHistory([]);
     setBase(null);
+    setAttributes(null);
     await clearGenerations();
   }
 
@@ -576,11 +605,11 @@ export function HairstyleTester() {
 
   return (
     <div className="space-y-12">
-      <header className="space-y-2 pt-6">
-        <h1 className="text-6xl md:text-7xl font-extrabold tracking-tight leading-none text-black">
+      <header className="space-y-2 pt-6 text-center lg:text-left">
+        <h1 className="text-5xl sm:text-6xl lg:text-7xl font-extrabold tracking-tight leading-none text-black">
           Try Blond
         </h1>
-        <p className="text-lg md:text-xl text-black font-normal">
+        <p className="text-base sm:text-lg lg:text-xl text-black font-normal">
           First build a <strong className="font-bold">base profile</strong> from a front + side photo
         </p>
       </header>
@@ -590,8 +619,8 @@ export function HairstyleTester() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left Column: Upload slots & Build Button */}
           <div className="lg:col-span-5 flex flex-col gap-6 w-full">
-            <div className="flex gap-4 w-full h-[280px] md:h-[300px]">
-              <div className="w-1/2 h-full">
+            <div className="flex flex-col gap-4 w-full lg:flex-row lg:h-[300px]">
+              <div className="w-full h-32 lg:w-1/2 lg:h-full">
                 <UploadSlot
                   title="Front"
                   subtitle="Profile"
@@ -600,7 +629,7 @@ export function HairstyleTester() {
                   theme="dark"
                 />
               </div>
-              <div className="w-1/2 h-full">
+              <div className="w-full h-32 lg:w-1/2 lg:h-full">
                 <UploadSlot
                   title="Side"
                   subtitle="Profile"
@@ -610,12 +639,12 @@ export function HairstyleTester() {
                 />
               </div>
             </div>
-            <div className="space-y-2">
+            <div className="flex flex-col items-center gap-2 lg:items-start">
               <button
                 type="button"
                 onClick={createBase}
                 disabled={!canCreateBase}
-                className="cursor-pointer bg-[#2B2B2B] text-white rounded-full px-8 py-3 text-base font-semibold hover:bg-[#363636] active:scale-95 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed w-full sm:w-auto"
+                className="cursor-pointer bg-[#2B2B2B] text-white rounded-full px-10 py-3 text-base font-semibold hover:bg-[#363636] active:scale-95 transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {stage === "base" ? "Building base…" : base ? "Rebuild base profile" : "Build Profile"}
               </button>
@@ -625,9 +654,9 @@ export function HairstyleTester() {
 
           {/* Right Column: Active Profile Card */}
           <div className="lg:col-span-7 w-full">
-            <div className="relative bg-white border-2 border-black rounded-xl p-6 flex flex-col sm:flex-row gap-6 items-start">
-              {/* Left Side: Preview & Orientation toggle */}
-              <div className="w-full sm:w-48 shrink-0 flex flex-col items-center">
+            <div className="relative bg-white border-2 border-black rounded-xl p-6 flex flex-col lg:flex-row gap-6 items-start">
+              {/* Preview & Orientation toggle (on top on mobile, left on desktop) */}
+              <div className="w-full max-w-xs mx-auto lg:mx-0 lg:max-w-none lg:w-48 shrink-0 flex flex-col items-center">
                 <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-[linear-gradient(180deg,#121212_57.21%,rgba(120,120,120,0.79)_100%)] flex items-center justify-center">
                   {stage === "base" ? (
                     <div className="flex flex-col items-center gap-2 text-neutral-400">
@@ -664,15 +693,21 @@ export function HairstyleTester() {
                   <div className="space-y-2.5 pt-1">
                     <div className="flex items-baseline gap-2 text-lg">
                       <span className="text-[#8B8B8B] font-semibold">Face Shape:</span>
-                      <span className="text-[#8B8B8B] font-semibold">Diamond</span>
+                      <span className="text-[#8B8B8B] font-semibold">
+                        {attrLoading ? "Analysing…" : (attributes?.faceShape ?? "—")}
+                      </span>
                     </div>
                     <div className="flex items-baseline gap-2 text-lg">
                       <span className="text-[#8B8B8B] font-semibold">Hairline:</span>
-                      <span className="text-[#8B8B8B] font-semibold">Average</span>
+                      <span className="text-[#8B8B8B] font-semibold">
+                        {attrLoading ? "…" : (attributes?.hairline ?? "—")}
+                      </span>
                     </div>
                     <div className="flex items-baseline gap-2 text-lg">
                       <span className="text-[#8B8B8B] font-semibold">Descent:</span>
-                      <span className="text-[#8B8B8B] font-semibold">Anglo</span>
+                      <span className="text-[#8B8B8B] font-semibold">
+                        {attrLoading ? "…" : (attributes?.descent ?? "—")}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -680,7 +715,10 @@ export function HairstyleTester() {
                 {base && (
                   <button
                     type="button"
-                    onClick={() => setBase(null)}
+                    onClick={() => {
+                      setBase(null);
+                      setAttributes(null);
+                    }}
                     className="mt-6 text-xs text-neutral-400 hover:text-neutral-600 font-medium underline underline-offset-2 cursor-pointer w-fit"
                   >
                     Clear Profile
@@ -707,8 +745,8 @@ export function HairstyleTester() {
         </div>
       </section>
 
-      {/* Centered Try Blond Button */}
-      <div className="flex justify-center pt-2 pb-6 border-b border-neutral-100">
+      {/* Centered Try Blond Button (nudged further down for breathing room) */}
+      <div className="flex justify-center pt-10 lg:pt-4 mt-6 lg:mt-0 pb-6 border-b border-neutral-100">
         <button
           type="button"
           onClick={() => {
@@ -1138,7 +1176,7 @@ function UploadSlot({
   const subtextClass = isDark ? "text-neutral-200" : "text-neutral-500";
   
   return (
-    <div className={`relative w-full h-full overflow-hidden ${bgClass} ${textClass} flex flex-col justify-between p-5 select-none shadow-md rounded-none`}>
+    <div className={`relative w-full h-full overflow-hidden ${bgClass} ${textClass} flex flex-row items-center justify-between lg:flex-col lg:items-stretch lg:justify-between p-5 select-none shadow-md rounded-none`}>
       {/* Background Preview */}
       {slot && (
         <>
@@ -1152,18 +1190,18 @@ function UploadSlot({
         </>
       )}
 
-      {/* Top Labels */}
+      {/* Labels (left on mobile, top on desktop) */}
       <div className="relative z-10 flex flex-col">
-        <span className="text-4xl font-extrabold tracking-tight leading-none">{title}</span>
-        <span className={`text-base font-light ${subtextClass} mt-1`}>{subtitle}</span>
+        <span className="text-2xl lg:text-4xl font-extrabold tracking-tight leading-none">{title}</span>
+        <span className={`text-sm lg:text-base font-light ${subtextClass} mt-1`}>{subtitle}</span>
       </div>
 
-      {/* Bottom Button — grey outer ring + white inner pill (spec) */}
-      <div className="relative z-10 flex justify-center w-full">
+      {/* Upload pill (right on mobile, centered bottom on desktop) */}
+      <div className="relative z-10 flex w-auto shrink-0 justify-end lg:w-full lg:justify-center">
         <button
           type="button"
           onClick={() => inputRef.current?.click()}
-          className="cursor-pointer bg-white text-black border-2 border-[#797979] rounded-full py-2 px-5 text-xs font-light shadow-md hover:bg-neutral-100 active:scale-95 transition-all duration-200 flex items-center gap-1.5"
+          className="cursor-pointer bg-[#d9d9d9] lg:bg-white text-black border-2 border-[#797979] rounded-full py-2 px-5 text-xs font-light shadow-md hover:bg-neutral-100 active:scale-95 transition-all duration-200 flex items-center gap-1.5"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
