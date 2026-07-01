@@ -222,6 +222,75 @@ function ZoomPreview({
   );
 }
 
+/**
+ * "Mystery" generating overlay for the projection. While a profile is being
+ * built or regenerated, a frosted-glass gradient pulses over the preview and
+ * the customer's angles (front → right → back → left) slowly cycle underneath.
+ * When generation finishes the glass fades and drifts off to the top-left,
+ * revealing the finished result behind it.
+ */
+function GenerationGlass({ baseUrl, active }: { baseUrl?: string; active: boolean }) {
+  const [phase, setPhase] = useState<"idle" | "in" | "out">("idle");
+  const [angle, setAngle] = useState<Orientation>("front");
+
+  useEffect(() => {
+    if (active) setPhase("in");
+    else setPhase((p) => (p === "in" ? "out" : "idle"));
+  }, [active]);
+
+  useEffect(() => {
+    if (phase !== "out") return;
+    const t = setTimeout(() => setPhase("idle"), 700);
+    return () => clearTimeout(t);
+  }, [phase]);
+
+  useEffect(() => {
+    if (phase !== "in") return;
+    const seq: Orientation[] = ["front", "right", "back", "left"];
+    let i = 0;
+    const id = setInterval(() => {
+      i = (i + 1) % seq.length;
+      setAngle(seq[i]);
+    }, 1100);
+    return () => clearInterval(id);
+  }, [phase]);
+
+  if (phase === "idle") return null;
+  const exiting = phase === "out";
+
+  return (
+    <div
+      className={`pointer-events-none absolute inset-0 z-30 overflow-hidden transition-all duration-700 ease-out ${
+        exiting ? "-translate-x-8 -translate-y-10 scale-90 opacity-0" : "opacity-100"
+      }`}
+    >
+      {/* Customer angles cycling behind the glass (gradient before the first base exists). */}
+      {baseUrl ? (
+        <div className="absolute inset-0 transition-all duration-700" style={quarterStyle(baseUrl, angle)} />
+      ) : (
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,#141414,#3a3a3a)]" />
+      )}
+      {/* Frosted glass + drifting champagne sheen for "mystery". */}
+      <div className="absolute inset-0 backdrop-blur-xl" />
+      <div
+        className="absolute inset-0 mix-blend-overlay opacity-80"
+        style={{
+          backgroundImage:
+            "linear-gradient(115deg, rgba(255,255,255,0.05) 0%, rgba(201,182,143,0.45) 45%, rgba(255,255,255,0.05) 90%)",
+          backgroundSize: "250% 100%",
+          animation: "studio-shimmer 2.4s linear infinite",
+        }}
+      />
+      <div className="absolute inset-0 bg-white/10" />
+      <div className="absolute inset-x-0 bottom-3 text-center">
+        <span className="text-[11px] font-semibold tracking-wide text-white/90">
+          {baseUrl ? "Regenerating…" : "Building profile…"}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 // STAGE 1 — build the frozen "customer profile" from front + side. Identity is
 // locked here once and the customer's OWN current hair is kept (not restyled).
 // Output is a single 2×2 turnaround sheet — front | left over back | right — that
@@ -655,15 +724,7 @@ export function HairstyleTester() {
               {/* Preview & Orientation toggle (on top on mobile, left on desktop) */}
               <div className="w-full max-w-xs mx-auto lg:mx-0 lg:max-w-none lg:w-48 shrink-0 flex flex-col items-center">
                 <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-[linear-gradient(180deg,#121212_57.21%,rgba(120,120,120,0.79)_100%)] flex items-center justify-center">
-                  {stage === "base" ? (
-                    <div className="flex flex-col items-center gap-2 text-neutral-400">
-                      <svg className="animate-spin h-5 w-5 text-neutral-500" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                      </svg>
-                      <span className="text-[11px] font-medium text-neutral-500">Building Profile...</span>
-                    </div>
-                  ) : base ? (
+                  {base ? (
                     <ZoomPreview url={base.url} orientation={orientation} enabled />
                   ) : (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-1 px-4 text-center text-white/55">
@@ -671,6 +732,8 @@ export function HairstyleTester() {
                       <span className="text-xs">Add a front &amp; side photo, then build.</span>
                     </div>
                   )}
+                  {/* Mystery generating overlay; fades off to reveal the result. */}
+                  <GenerationGlass baseUrl={base?.url} active={stage === "base"} />
                 </div>
 
                 <Segmented
