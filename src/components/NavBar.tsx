@@ -88,6 +88,13 @@ export function NavBar({ signedIn }: { signedIn: boolean }) {
           >
             Home
           </Link>
+          <Link
+            href="/catalogue"
+            onClick={() => setOpen(false)}
+            className="text-3xl font-bold tracking-tight transition-colors hover:text-white/80"
+          >
+            Catalogue
+          </Link>
           {signedIn ? (
             <form action="/auth/signout" method="post">
               <button
