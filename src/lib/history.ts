@@ -32,6 +32,12 @@ export interface GenerationRecord {
   prompt: string;
   /** Which stage produced it: a frozen base profile, or a styled (hair-applied) result. */
   kind?: "base" | "styled";
+  /** Customer name attached to a base profile (metadata). */
+  customerName?: string;
+  /** AI-scanned profile attributes (on base profiles). */
+  attributes?: Record<string, string>;
+  /** For a styled result: the id of the base profile it was generated from. */
+  baseId?: string;
 }
 
 const DB_NAME = "hairstyle-tester";

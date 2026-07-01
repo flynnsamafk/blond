@@ -30,6 +30,9 @@ interface Row {
   tee: string;
   prompt: string;
   kind: string | null;
+  customer_name: string | null;
+  attributes: Record<string, string> | null;
+  base_id: string | null;
 }
 
 function rowToRecord(r: Row): GenerationRecord {
@@ -43,6 +46,9 @@ function rowToRecord(r: Row): GenerationRecord {
     tee: r.tee as GenerationRecord["tee"],
     prompt: r.prompt,
     kind: (r.kind as GenerationRecord["kind"]) ?? undefined,
+    customerName: r.customer_name ?? undefined,
+    attributes: r.attributes ?? undefined,
+    baseId: r.base_id ?? undefined,
   };
 }
 
@@ -81,10 +87,26 @@ export async function addGeneration(record: GenerationRecord): Promise<void> {
       tee: record.tee,
       prompt: record.prompt,
       kind: record.kind ?? "styled",
+      customer_name: record.customerName ?? null,
+      attributes: record.attributes ?? null,
+      base_id: record.baseId ?? null,
     });
     await prune(supabase);
   } catch {
     // ignore — never break the generation flow over a history write
+  }
+}
+
+/** Attach the scanned attributes to a base profile after the vision scan lands. */
+export async function updateAttributes(
+  id: string,
+  attributes: Record<string, string>,
+): Promise<void> {
+  if (!supabaseBacked()) return;
+  try {
+    await createClient().from("generations").update({ attributes }).eq("id", id);
+  } catch {
+    // ignore
   }
 }
 

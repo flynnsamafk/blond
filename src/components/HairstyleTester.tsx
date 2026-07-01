@@ -26,6 +26,7 @@ import {
   addGeneration,
   deleteGeneration,
   listGenerations,
+  updateAttributes,
   type GenerationRecord,
 } from "@/lib/generations";
 
@@ -331,6 +332,16 @@ LAYOUT — the four quarters must be exactly equal in size and fill the frame ed
 
 Output only the final image.`;
 
+// COLOUR-ONLY mode — recolour the customer's existing hair to match the
+// reference's colour, WITHOUT changing their cut. Used when "Copy colour only".
+const COLOR_ONLY_PROMPT = `Image 1 is a FINISHED studio headshot of a salon customer; their identity and HAIRSTYLE are already locked. Image 2 shows a hair COLOUR reference worn by a different person.
+
+Change Image 1 in ONE way only: recolour the customer's hair to match the COLOUR of Image 2 — its base shade, tone, depth and any highlights, lowlights or gradient. Keep the customer's EXISTING haircut, length, shape, parting, fringe, texture, volume and hairline EXACTLY as they are in Image 1 — do NOT restyle or re-cut, change ONLY the colour. Apply the colour naturally from roots to ends with realistic shine, depth and shadow, following the existing hair's flow.
+
+KEEP PIXEL-IDENTICAL to Image 1 except the hair's colour: the face and every feature, the cut and shape of the hair, the hairline, the skin tone, the facial hair, the lighting, the background, the framing and the t-shirt.
+
+Output only the edited image.`;
+
 // STAGE 2 — apply a hairstyle ON TOP of the frozen base. Image 1 is already the
 // exact face we want, so the model only repaints the hair. The prompt works like
 // a barber: READ the customer's proportions (face shape/size, forehead, hairline,
@@ -479,6 +490,12 @@ export function HairstyleTester() {
     hairline: string;
   } | null>(null);
   const [attrLoading, setAttrLoading] = useState(false);
+  // Customer name attached to the base profile (metadata).
+  const [customerName, setCustomerName] = useState("");
+  // What to copy from the reference when applying: cut, colour, or both.
+  const [copyMode, setCopyMode] = useState<"style" | "color" | "both">("style");
+  // TEMP: preview the generating animation without paying for a real generation.
+  const [previewGlass, setPreviewGlass] = useState(false);
 
   const busy = stage !== null;
   const tryOnSectionRef = useRef<HTMLDivElement>(null);
@@ -547,6 +564,7 @@ export function HairstyleTester() {
     composed: string,
     usedModelId: string,
     usedSize: ImageSize,
+    extra?: { customerName?: string; baseId?: string },
   ): GenerationRecord {
     const usedModel = getModel(usedModelId);
     const record: GenerationRecord = {
@@ -559,6 +577,8 @@ export function HairstyleTester() {
       tee,
       prompt: composed,
       kind,
+      customerName: extra?.customerName,
+      baseId: extra?.baseId,
     };
     void addGeneration(record);
     setHistory((prev) => [record, ...prev].slice(0, MAX_RECORDS));
@@ -578,10 +598,12 @@ export function HairstyleTester() {
         prompt: composed,
         images: [front.file, side.file],
       });
-      const rec = saveRecord(url, "base", composed, baseModel.id, baseSize);
+      const rec = saveRecord(url, "base", composed, baseModel.id, baseSize, {
+        customerName: customerName.trim() || undefined,
+      });
       setBase({ id: rec.id, url });
       setResult({ status: "idle" });
-      void analyzeProfile(front.file, side.file);
+      void analyzeProfile(front.file, side.file, rec.id);
     } catch (err) {
       setBaseError(err instanceof Error ? err.message : "Failed to build base profile.");
     } finally {
@@ -590,7 +612,7 @@ export function HairstyleTester() {
   }
 
   // Real profile attributes via the Grok vision scan (~<1¢). Non-blocking.
-  async function analyzeProfile(front: File, side: File) {
+  async function analyzeProfile(front: File, side: File, baseId: string) {
     setAttrLoading(true);
     try {
       const fd = new FormData();
@@ -607,7 +629,10 @@ export function HairstyleTester() {
             };
           }
         | null;
-      if (res.ok && data?.attributes) setAttributes(data.attributes);
+      if (res.ok && data?.attributes) {
+        setAttributes(data.attributes);
+        void updateAttributes(baseId, data.attributes);
+      }
     } catch {
       // non-fatal — the profile still works without attributes
     } finally {
@@ -632,14 +657,21 @@ export function HairstyleTester() {
     setResult({ status: "loading" });
     try {
       const baseBlob = await dataUrlToBlob(base.url);
+      // Pick what to copy from the reference: cut only, colour only, or both.
+      const colourDirective =
+        copyMode === "both"
+          ? "\n\nHAIR COLOUR: ALSO recolour the hair to match Image 2's colour, tone, depth and any highlights."
+          : "\n\nHAIR COLOUR: keep the customer's OWN hair colour from Image 1 unchanged — copy only the cut and shape from Image 2, not its colour.";
+      const effectivePrompt =
+        copyMode === "color" ? COLOR_ONLY_PROMPT : applyPrompt + colourDirective;
       const url = await generateImage({
         modelId: applyModel.id,
         size: applySize,
-        prompt: applyPrompt,
+        prompt: effectivePrompt,
         images: [baseBlob, reference.file],
       });
       setResult({ status: "done", url });
-      saveRecord(url, "styled", applyPrompt, applyModel.id, applySize);
+      saveRecord(url, "styled", effectivePrompt, applyModel.id, applySize, { baseId: base.id });
     } catch (err) {
       setResult({
         status: "error",
@@ -654,7 +686,17 @@ export function HairstyleTester() {
     setTee(rec.tee);
     if (rec.kind === "base") {
       setBase({ id: rec.id, url: rec.imageUrl });
-      setAttributes(null);
+      setAttributes(
+        rec.attributes
+          ? {
+              faceShape: rec.attributes.faceShape ?? "—",
+              foreheadShape: rec.attributes.foreheadShape ?? "—",
+              facialRatio: rec.attributes.facialRatio ?? "—",
+              hairline: rec.attributes.hairline ?? "—",
+            }
+          : null,
+      );
+      setCustomerName(rec.customerName ?? "");
       setResult({ status: "idle" });
     } else {
       setResult({ status: "done", url: rec.imageUrl });
@@ -678,6 +720,17 @@ export function HairstyleTester() {
         <p className="text-base sm:text-lg lg:text-xl text-black font-normal">
           First build a <strong className="font-bold">base profile</strong> from a front + side photo
         </p>
+        {/* TEMP: preview the generating animation without paying for a real run. Remove later. */}
+        <button
+          type="button"
+          onClick={() => {
+            setPreviewGlass(true);
+            setTimeout(() => setPreviewGlass(false), 4500);
+          }}
+          className="mx-auto lg:mx-0 mt-1 inline-block rounded-full border border-dashed border-neutral-300 px-3 py-1 text-xs text-neutral-400 hover:text-neutral-700"
+        >
+          ▶ Preview animation (temp)
+        </button>
       </header>
 
       {/* STEP 1 — base profile builder */}
@@ -705,7 +758,14 @@ export function HairstyleTester() {
                 />
               </div>
             </div>
-            <div className="flex flex-col items-center gap-2 lg:items-start">
+            <div className="flex flex-col items-center gap-3 lg:items-start">
+              <input
+                type="text"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                placeholder="Customer name (optional)"
+                className="w-full max-w-xs rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none transition-colors focus:border-black"
+              />
               <button
                 type="button"
                 onClick={createBase}
@@ -733,7 +793,7 @@ export function HairstyleTester() {
                     </div>
                   )}
                   {/* Mystery generating overlay; fades off to reveal the result. */}
-                  <GenerationGlass baseUrl={base?.url} active={stage === "base"} />
+                  <GenerationGlass baseUrl={base?.url} active={stage === "base" || previewGlass} />
                 </div>
 
                 <Segmented
@@ -841,6 +901,20 @@ export function HairstyleTester() {
             slot={slots.reference}
             onPick={(f) => pick("reference", f)}
             theme="dark"
+          />
+        </div>
+        <div className="max-w-md space-y-1.5">
+          <span className="block text-xs font-medium uppercase tracking-wide text-neutral-500">
+            Copy from reference
+          </span>
+          <Segmented
+            value={copyMode}
+            onChange={setCopyMode}
+            options={[
+              { v: "style", label: "Cut only" },
+              { v: "color", label: "Colour only" },
+              { v: "both", label: "Cut + colour" },
+            ]}
           />
         </div>
         <div className="space-y-2">

@@ -16,8 +16,8 @@ const stackSans = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "AI Hairstyle Test",
-  description: "Upload a customer photo + reference hairstyle and generate a studio profile.",
+  title: "Try Blond",
+  description: "In-chair AI hairstyle try-on for salon staff.",
 };
 
 export const viewport: Viewport = {
