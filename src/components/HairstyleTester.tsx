@@ -11,6 +11,8 @@ import {
   type ReactNode,
 } from "react";
 
+import Link from "next/link";
+
 import { generateImage } from "@/lib/ai/tryOn";
 import {
   IMAGE_MODELS,
@@ -334,11 +336,13 @@ Output only the final image.`;
 
 // COLOUR-ONLY mode — recolour the customer's existing hair to match the
 // reference's colour, WITHOUT changing their cut. Used when "Copy colour only".
-const COLOR_ONLY_PROMPT = `Image 1 is a FINISHED studio headshot of a salon customer; their identity and HAIRSTYLE are already locked. Image 2 shows a hair COLOUR reference worn by a different person.
+const COLOR_ONLY_PROMPT = `YOU ARE GIVEN TWO IMAGES. READ BOTH BEFORE EDITING.
+- IMAGE 1 (the FIRST image) = the CUSTOMER. Their identity AND their existing hairstyle are locked.
+- IMAGE 2 (the SECOND image) = a hair COLOUR reference worn by a different person. Take ONLY its COLOUR — completely ignore its cut, length, shape and the person.
 
-Change Image 1 in ONE way only: recolour the customer's hair to match the COLOUR of Image 2 — its base shade, tone, depth and any highlights, lowlights or gradient. Keep the customer's EXISTING haircut, length, shape, parting, fringe, texture, volume and hairline EXACTLY as they are in Image 1 — do NOT restyle or re-cut, change ONLY the colour. Apply the colour naturally from roots to ends with realistic shine, depth and shadow, following the existing hair's flow.
+YOUR TASK: change IMAGE 1 in ONE way only — recolour the customer's hair to match the COLOUR of IMAGE 2. Match its exact base shade, tone, depth, warmth/coolness and any highlights, lowlights, darker roots or gradient. Keep the customer's OWN haircut, length, shape, parting, fringe, texture, volume and hairline EXACTLY as in IMAGE 1 — do NOT restyle, re-cut or reshape anything. Apply the colour naturally from roots to ends, following the existing hair's flow, with realistic shine, dimension and shadow (never a flat single block of colour).
 
-KEEP PIXEL-IDENTICAL to Image 1 except the hair's colour: the face and every feature, the cut and shape of the hair, the hairline, the skin tone, the facial hair, the lighting, the background, the framing and the t-shirt.
+KEEP PIXEL-IDENTICAL to IMAGE 1 except the hair's COLOUR: the face and every feature, the cut and shape of the hair, the hairline, the skin tone, the facial hair, the lighting, the background, the framing and the t-shirt.
 
 Output only the edited image.`;
 
@@ -395,7 +399,13 @@ const GROK_BASE_PROMPT = `GROK / EDIT-MODEL DIRECTIVE — treat this as a full s
 
 ${DEFAULT_BASE_PROMPT}`;
 
-const GROK_APPLY_PROMPT = `GROK / EDIT-MODEL DIRECTIVE — this is a LOCALISED edit. Change ONLY the scalp-hair pixels; leave every other pixel of Image 1 exactly as it is — the face, the customer's own facial hair, the skin tone, the facial depth, the hairline, the background, the framing and the t-shirt. Do not regenerate, re-light or re-render the face, and do not alter the background or composition.
+const GROK_APPLY_PROMPT = `GROK — YOU ARE GIVEN TWO IMAGES. READ BOTH BEFORE EDITING.
+- IMAGE 1 (the FIRST image) = the CUSTOMER. Their face and identity are locked and must NOT change.
+- IMAGE 2 (the SECOND image) = the HAIRSTYLE REFERENCE, worn by a different person. THIS is the exact haircut you must copy.
+
+YOUR TASK: look closely at IMAGE 2 and RECREATE its hairstyle on the customer in IMAGE 1 — the same length, overall shape and silhouette, parting, fringe, taper/fade on the sides, texture and the way it sits on the head. The result MUST clearly look like the haircut in IMAGE 2. Do NOT invent a random or generic hairstyle, and do NOT keep the customer's current hair. Re-cut IMAGE 2's style to fit the customer's own head, hairline and proportions like a real barber would, but it must be recognisably the SAME cut as IMAGE 2.
+
+This is otherwise a LOCALISED edit: change ONLY the scalp-hair region. Leave every other pixel of IMAGE 1 exactly as it is — the face, the customer's own facial hair, the skin tone, the facial depth, the hairline position, the background, the framing and the t-shirt. Do not regenerate, re-light or re-render the face, and do not alter the background or composition.
 
 ${DEFAULT_APPLY_PROMPT}`;
 
@@ -940,6 +950,12 @@ export function HairstyleTester() {
             theme="dark"
           />
         </div>
+        <Link
+          href="/catalogue"
+          className="inline-flex items-center gap-1.5 rounded-full border border-neutral-300 px-4 py-2 text-sm font-medium text-neutral-700 hover:border-black"
+        >
+          Choose from catalogue →
+        </Link>
         <div className="max-w-md space-y-1.5">
           <span className="block text-xs font-medium uppercase tracking-wide text-neutral-500">
             Copy from reference

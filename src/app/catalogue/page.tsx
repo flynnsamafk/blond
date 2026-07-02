@@ -14,7 +14,7 @@ import {
 } from "@/lib/catalogue";
 
 /** Hand a catalogue style off to the try-on flow on the home page. */
-export const TRY_ON_STYLE_KEY = "blond:tryOnStyle";
+const TRY_ON_STYLE_KEY = "blond:tryOnStyle";
 
 export default function CataloguePage() {
   const router = useRouter();

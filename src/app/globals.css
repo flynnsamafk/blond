@@ -74,6 +74,35 @@
   }
 }
 
+/* Route-change curtain: ramp up to cover, hold, ramp down off the top. */
+@keyframes page-wipe {
+  0% {
+    transform: translateY(100%);
+  }
+  38% {
+    transform: translateY(0);
+  }
+  60% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-100%);
+  }
+}
+@keyframes page-wipe-logo {
+  0%,
+  18% {
+    opacity: 0;
+  }
+  40%,
+  56% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 html {
   -webkit-text-size-adjust: 100%;
 }

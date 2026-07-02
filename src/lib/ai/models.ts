@@ -49,6 +49,16 @@ export const IMAGE_MODELS: ImageModel[] = [
     note: "Highest quality and best prompt-following. Slower and pricier; supports 2K.",
   },
   {
+    id: "gemini-3-flash-lite-image",
+    label: "Gemini 3 Flash-Lite Image (Nano Banana 2 Lite)",
+    provider: "google",
+    sizes: ["1K", "2K"],
+    // Estimate — the fastest/cheapest of the Nano Banana 2 family. Confirm the
+    // exact model id + price against the Gemini docs.
+    cost: { "1K": 0.03, "2K": 0.05 },
+    note: "Lightest Nano Banana 2 — fastest & cheapest. Model id/price are estimates; confirm in Gemini docs.",
+  },
+  {
     id: "gemini-2.5-flash-image",
     label: "Gemini 2.5 Flash Image",
     provider: "google",

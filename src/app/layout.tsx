@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 
 import { Header } from "@/components/Header";
+import { PageTransition } from "@/components/PageTransition";
 
 import "./globals.css";
 
@@ -32,6 +33,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={stackSans.variable}>
       <body className="min-h-dvh bg-white text-neutral-900 antialiased">
+        <PageTransition />
         <Header />
         <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-4">{children}</main>
       </body>
