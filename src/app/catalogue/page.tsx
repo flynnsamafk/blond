@@ -9,6 +9,8 @@ import {
   deleteHairstyle,
   listCollections,
   listHairstyles,
+  updateCollection,
+  updateHairstyle,
   type Collection,
   type Hairstyle,
 } from "@/lib/catalogue";
@@ -24,6 +26,8 @@ export default function CataloguePage() {
   const [query, setQuery] = useState("");
   const [newCollection, setNewCollection] = useState<string | null>(null); // input value while creating
   const [addingTo, setAddingTo] = useState<Collection | null>(null);
+  const [editingStyle, setEditingStyle] = useState<Hairstyle | null>(null);
+  const [renaming, setRenaming] = useState<{ id: string; name: string } | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -114,7 +118,7 @@ export default function CataloguePage() {
           <h2 className="text-sm font-semibold text-neutral-500">
             {matches.length} result{matches.length === 1 ? "" : "s"} for “{query}”
           </h2>
-          <StyleGrid styles={matches} onDelete={(id) => void handleDelete(id)} onUse={useInTryOn} />
+          <StyleGrid styles={matches} onDelete={(id) => void handleDelete(id)} onUse={useInTryOn} onEdit={setEditingStyle} />
         </section>
       ) : collections.length === 0 ? (
         <div className="rounded-xl border border-dashed border-neutral-300 bg-neutral-50 px-4 py-12 text-center">
@@ -126,23 +130,55 @@ export default function CataloguePage() {
           const colStyles = styles.filter((s) => s.collectionId === col.id);
           return (
             <section key={col.id} className="space-y-3">
-              <div className="flex items-center justify-between border-b border-neutral-100 pb-2">
-                <div>
-                  <h2 className="text-xl font-bold text-black">{col.name}</h2>
-                  {col.description && <p className="text-xs text-neutral-500">{col.description}</p>}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setAddingTo(col)}
-                  className="shrink-0 rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-medium text-neutral-700 hover:border-black"
-                >
-                  + Add style
-                </button>
+              <div className="flex items-center justify-between gap-2 border-b border-neutral-100 pb-2">
+                {renaming?.id === col.id ? (
+                  <div className="flex flex-1 items-center gap-2">
+                    <input
+                      autoFocus
+                      value={renaming.name}
+                      onChange={(e) => setRenaming({ id: col.id, name: e.target.value })}
+                      onKeyDown={(e) => e.key === "Enter" && void saveRename()}
+                      className="min-w-0 flex-1 rounded-lg border border-neutral-300 px-3 py-1.5 text-sm outline-none focus:border-black"
+                    />
+                    <button type="button" onClick={() => void saveRename()} className="rounded-full bg-[#2B2B2B] px-3 py-1.5 text-xs font-semibold text-white">
+                      Save
+                    </button>
+                    <button type="button" onClick={() => setRenaming(null)} className="text-xs text-neutral-500 hover:text-neutral-800">
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex min-w-0 items-center gap-2">
+                      <h2 className="truncate text-xl font-bold text-black">{col.name}</h2>
+                      <button
+                        type="button"
+                        onClick={() => setRenaming({ id: col.id, name: col.name })}
+                        aria-label="Rename collection"
+                        className="text-neutral-400 hover:text-black"
+                      >
+                        ✎
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAddingTo(col)}
+                      className="shrink-0 rounded-full border border-neutral-300 px-4 py-1.5 text-sm font-medium text-neutral-700 hover:border-black"
+                    >
+                      + Add style
+                    </button>
+                  </>
+                )}
               </div>
               {colStyles.length === 0 ? (
                 <p className="text-xs text-neutral-400">No styles in this collection yet.</p>
               ) : (
-                <StyleGrid styles={colStyles} onDelete={(id) => void handleDelete(id)} onUse={useInTryOn} />
+                <StyleGrid
+                  styles={colStyles}
+                  onDelete={(id) => void handleDelete(id)}
+                  onUse={useInTryOn}
+                  onEdit={setEditingStyle}
+                />
               )}
             </section>
           );
@@ -159,6 +195,17 @@ export default function CataloguePage() {
           }}
         />
       )}
+
+      {editingStyle && (
+        <EditStyleModal
+          style={editingStyle}
+          onClose={() => setEditingStyle(null)}
+          onSaved={(updated) => {
+            setStyles((s) => s.map((x) => (x.id === updated.id ? updated : x)));
+            setEditingStyle(null);
+          }}
+        />
+      )}
     </div>
   );
 
@@ -166,6 +213,16 @@ export default function CataloguePage() {
     if (typeof window !== "undefined" && !window.confirm("Delete this style?")) return;
     setStyles((s) => s.filter((x) => x.id !== id));
     await deleteHairstyle(id);
+  }
+
+  async function saveRename() {
+    if (!renaming) return;
+    const name = renaming.name.trim();
+    const { id } = renaming;
+    setRenaming(null);
+    if (!name) return;
+    setCollections((cs) => cs.map((c) => (c.id === id ? { ...c, name } : c)));
+    await updateCollection(id, { name });
   }
 
   function useInTryOn(style: Hairstyle) {
@@ -181,10 +238,12 @@ function StyleGrid({
   styles,
   onDelete,
   onUse,
+  onEdit,
 }: {
   styles: Hairstyle[];
   onDelete: (id: string) => void;
   onUse: (s: Hairstyle) => void;
+  onEdit: (s: Hairstyle) => void;
 }) {
   return (
     <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
@@ -193,14 +252,24 @@ function StyleGrid({
           <div className="relative aspect-[3/4] bg-neutral-100">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={s.imageUrl} alt={s.name} className="h-full w-full object-cover" />
-            <button
-              type="button"
-              onClick={() => onDelete(s.id)}
-              aria-label="Delete style"
-              className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-sm text-white opacity-0 transition-opacity group-hover:opacity-100"
-            >
-              ×
-            </button>
+            <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+              <button
+                type="button"
+                onClick={() => onEdit(s)}
+                aria-label="Edit style"
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-xs text-white"
+              >
+                ✎
+              </button>
+              <button
+                type="button"
+                onClick={() => onDelete(s.id)}
+                aria-label="Delete style"
+                className="flex h-6 w-6 items-center justify-center rounded-full bg-black/50 text-sm text-white"
+              >
+                ×
+              </button>
+            </div>
           </div>
           <div className="space-y-1.5 p-2.5">
             <div className="space-y-0.5">
@@ -331,6 +400,87 @@ function AddStyleModal({
             className="rounded-full bg-[#2B2B2B] px-5 py-2 text-sm font-semibold text-white hover:bg-[#3a3a3a] disabled:opacity-50"
           >
             {saving ? "Saving…" : "Add style"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function EditStyleModal({
+  style,
+  onClose,
+  onSaved,
+}: {
+  style: Hairstyle;
+  onClose: () => void;
+  onSaved: (s: Hairstyle) => void;
+}) {
+  const [name, setName] = useState(style.name);
+  const [gender, setGender] = useState(style.gender ?? "");
+  const [length, setLength] = useState(style.length ?? "");
+  const [texture, setTexture] = useState(style.texture ?? "");
+  const [notes, setNotes] = useState(style.notes ?? "");
+  const [saving, setSaving] = useState(false);
+
+  async function save() {
+    if (!name.trim()) return;
+    setSaving(true);
+    const patch = {
+      name: name.trim(),
+      gender: gender || null,
+      length: length || null,
+      texture: texture || null,
+      notes: notes || null,
+    };
+    await updateHairstyle(style.id, patch);
+    setSaving(false);
+    onSaved({ ...style, ...patch });
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[90] flex items-center justify-center bg-black/40 px-4 backdrop-blur-sm"
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="max-h-[90vh] w-full max-w-md space-y-3 overflow-y-auto rounded-2xl border border-neutral-200 bg-white p-5 shadow-xl"
+      >
+        <h3 className="text-base font-bold text-neutral-900">Edit style</h3>
+        <div className="h-32 overflow-hidden rounded-lg bg-neutral-100">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={style.imageUrl} alt={style.name} className="h-full w-full object-cover" />
+        </div>
+        <input
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Style name"
+          className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-black"
+        />
+        <div className="grid grid-cols-3 gap-2">
+          <input value={gender} onChange={(e) => setGender(e.target.value)} placeholder="Gender" className="rounded-lg border border-neutral-300 px-2 py-2 text-sm outline-none focus:border-black" />
+          <input value={length} onChange={(e) => setLength(e.target.value)} placeholder="Length" className="rounded-lg border border-neutral-300 px-2 py-2 text-sm outline-none focus:border-black" />
+          <input value={texture} onChange={(e) => setTexture(e.target.value)} placeholder="Texture" className="rounded-lg border border-neutral-300 px-2 py-2 text-sm outline-none focus:border-black" />
+        </div>
+        <textarea
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          rows={3}
+          placeholder="Fit notes — parting, cowlick handling, who it suits…"
+          className="w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-black"
+        />
+        <div className="flex justify-end gap-2 pt-1">
+          <button type="button" onClick={onClose} className="rounded-full px-4 py-2 text-sm text-neutral-600 hover:text-neutral-900">
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving}
+            className="rounded-full bg-[#2B2B2B] px-5 py-2 text-sm font-semibold text-white hover:bg-[#3a3a3a] disabled:opacity-50"
+          >
+            {saving ? "Saving…" : "Save changes"}
           </button>
         </div>
       </div>

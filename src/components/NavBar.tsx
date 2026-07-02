@@ -95,6 +95,13 @@ export function NavBar({ signedIn }: { signedIn: boolean }) {
           >
             Catalogue
           </Link>
+          <Link
+            href="/history"
+            onClick={() => setOpen(false)}
+            className="text-3xl font-bold tracking-tight transition-colors hover:text-white/80"
+          >
+            History
+          </Link>
           {signedIn ? (
             <form action="/auth/signout" method="post">
               <button

@@ -86,8 +86,36 @@ export async function createCollection(
   return toCollection(data as CollectionRow);
 }
 
+export async function updateCollection(
+  id: string,
+  fields: { name?: string; description?: string },
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  if (fields.name !== undefined) patch.name = fields.name;
+  if (fields.description !== undefined) patch.description = fields.description;
+  if (Object.keys(patch).length) await createClient().from("collections").update(patch).eq("id", id);
+}
+
 export async function deleteCollection(id: string): Promise<void> {
   await createClient().from("collections").delete().eq("id", id);
+}
+
+export async function updateHairstyle(
+  id: string,
+  fields: {
+    name?: string;
+    gender?: string | null;
+    length?: string | null;
+    texture?: string | null;
+    notes?: string | null;
+    tags?: string[] | null;
+  },
+): Promise<void> {
+  const patch: Record<string, unknown> = {};
+  (["name", "gender", "length", "texture", "notes", "tags"] as const).forEach((k) => {
+    if (fields[k] !== undefined) patch[k] = fields[k];
+  });
+  if (Object.keys(patch).length) await createClient().from("hairstyles").update(patch).eq("id", id);
 }
 
 export async function listHairstyles(collectionId?: string): Promise<Hairstyle[]> {
